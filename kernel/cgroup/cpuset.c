@@ -137,6 +137,57 @@ struct cpuset {
 	int relax_domain_level;
 };
 
+/*
+ * Partition root states:
+ *
+ *   0 - not a partition root
+ *
+ *   1 - partition root
+ *
+ *  -1 - invalid partition root
+ *       None of the cpus in cpus_allowed can be put into the parent's
+ *       subparts_cpus. In this case, the cpuset is not a real partition
+ *       root anymore.  However, the CPU_EXCLUSIVE bit will still be set
+ *       and the cpuset can be restored back to a partition root if the
+ *       parent cpuset can give more CPUs back to this child cpuset.
+ */
+#define PRS_DISABLED		0
+#define PRS_ENABLED		1
+#define PRS_ERROR		-1
+
+/*
+ * Temporary cpumasks for working with partitions that are passed among
+ * functions to avoid memory allocation in inner functions.
+ */
+struct tmpmasks {
+	cpumask_var_t addmask, delmask;	/* For partition root */
+	cpumask_var_t new_cpus;		/* For update_cpumasks_hier() */
+};
+
+#ifdef CONFIG_CPUSETS_ASSIST
+struct cs_target {
+	const char *name;
+	char *cpus;
+};
+#endif
+
+static inline bool task_is_booster(struct task_struct *tsk)
+{
+	char comm[sizeof(tsk->comm)];
+
+	get_task_comm(comm, tsk);
+	return !strcmp(comm, "init") || !strcmp(comm, "NodeLooperThrea") ||
+	       !strcmp(comm, "power@1.2-servi") ||
+	       !strcmp(comm, "power@1.3-servi") ||
+	       !strcmp(comm, "perf@1.0-servic") ||
+	       !strcmp(comm, "perf@2.0-servic") ||
+	       !strcmp(comm, "perf@2.1-servic") ||
+	       !strcmp(comm, "perf@2.2-servic") ||
+	       !strcmp(comm, "power@2.0-servic") ||
+	       !strcmp(comm, "iop@") ||
+	       !strcmp(comm, "init.qcom.post_");
+}
+
 static inline struct cpuset *css_cs(struct cgroup_subsys_state *css)
 {
 	return css ? container_of(css, struct cpuset, css) : NULL;
